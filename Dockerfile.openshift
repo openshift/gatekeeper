@@ -1,0 +1,27 @@
+# This dockerfile is specific to building the network metrics daemon for OpenShift
+FROM registry.svc.ci.openshift.org/ocp/builder:rhel-8-golang-1.15-openshift-4.6 as builder
+
+ENV GO111MODULE=on\
+      CGO_ENABLED=0
+
+WORKDIR /go/src/github.com/open-policy-agent/gatekeeper
+
+COPY pkg/ pkg/
+COPY third_party/ third_party/
+COPY vendor/ vendor/
+COPY main.go main.go
+COPY apis/ apis/
+COPY go.mod .
+
+RUN go build -mod vendor -a -o manager main.go
+
+
+FROM registry.svc.ci.openshift.org/ocp/4.6:base
+COPY --from=builder /go/src/github.com/open-policy-agent/gatekeeper/manager .
+
+LABEL io.k8s.display-name="Gatekeeper" \
+      io.k8s.description="The OPA based admission controller" \
+      io.openshift.tags="openshift" \
+      maintainer="Marcin Mirecki <mmirecki@redhat.com>"
+
+CMD ["/manager"]
